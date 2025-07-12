@@ -91,7 +91,9 @@ onenow_backend/
 
 #### 4. Advanced Query Filters
 - Vehicle filtering: `GET /api/v1/vehicles/?make=Honda&daily_rate__lte=5000`
+- Vehicles can be filtered on almost all the fields present in the vehicle model. For filteration fields, check out vehicles/filters.py
 - Booking filtering: `GET /api/v1/bookings/?status=confirmed&from=2024-01-01`
+- Bookings can be filtered on almost all the fields present in the booking model. For filteration fields, check out bookings/filters.py
 - Search functionality across multiple fields
 - Pagination support for large datasets
 
