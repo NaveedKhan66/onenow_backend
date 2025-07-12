@@ -4,11 +4,8 @@ Django management command to populate database with dummy data for testing.
 
 import random
 from datetime import date, timedelta
-from decimal import Decimal
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from django.db import transaction
-from django.utils import timezone
 
 from vehicles.models import Vehicle, VehicleImage, VehicleReview
 from bookings.models import Booking, BookingPayment
@@ -48,38 +45,33 @@ class Command(BaseCommand):
         if options['clear']:
             self.clear_data()
         
-        try:
-            with transaction.atomic():
-                # Create users first
-                users = self.create_users(options['users'])
-                self.stdout.write(
-                    self.style.SUCCESS(f'Created {len(users)} users')
-                )
-                
-                # Create vehicles
-                vehicles = self.create_vehicles(users, options['vehicles'])
-                self.stdout.write(
-                    self.style.SUCCESS(f'Created {len(vehicles)} vehicles')
-                )
-                
-                # Create bookings
-                bookings = self.create_bookings(users, vehicles, options['bookings'])
-                self.stdout.write(
-                    self.style.SUCCESS(f'Created {len(bookings)} bookings')
-                )
-                
-                # Create reviews
-                reviews = self.create_reviews(users, vehicles)
-                self.stdout.write(
-                    self.style.SUCCESS(f'Created {len(reviews)} reviews')
-                )
-                
-                self.stdout.write(
-                    self.style.SUCCESS('Database populated successfully!')
-                )
-                
-        except Exception as e:
-            raise CommandError(f'Error populating database: {str(e)}')
+        # Create users first
+        users = self.create_users(options['users'])
+        self.stdout.write(
+            self.style.SUCCESS(f'Created {len(users)} users')
+        )
+        
+        # Create vehicles
+        vehicles = self.create_vehicles(users, options['vehicles'])
+        self.stdout.write(
+            self.style.SUCCESS(f'Created {len(vehicles)} vehicles')
+        )
+        
+        # Create bookings
+        bookings = self.create_bookings(users, vehicles, options['bookings'])
+        self.stdout.write(
+            self.style.SUCCESS(f'Created {len(bookings)} bookings')
+        )
+        
+        # Create reviews
+        reviews = self.create_reviews(users, vehicles)
+        self.stdout.write(
+            self.style.SUCCESS(f'Created {len(reviews)} reviews')
+        )
+        
+        self.stdout.write(
+            self.style.SUCCESS('Database populated successfully!')
+        )
 
     def clear_data(self):
         """Clear existing data from the database."""
@@ -112,7 +104,6 @@ class Command(BaseCommand):
             user = User.objects.create_user(
                 username=f'user{i+1}',
                 email=f'{first_name.lower()}.{last_name.lower()}{i+1}@example.com',
-                password='testpass123',
                 first_name=first_name,
                 last_name=last_name,
                 phone_number=f'+92-300-{random.randint(1000000, 9999999)}',
@@ -125,6 +116,8 @@ class Command(BaseCommand):
                 address=f'House {random.randint(1, 999)}, Street {random.randint(1, 50)}, {city}, Pakistan',
                 is_verified=True
             )
+            user.set_password('testpass123')
+            user.save()
             users.append(user)
             
         return users
@@ -212,69 +205,79 @@ class Command(BaseCommand):
         statuses = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled']
         payment_statuses = ['pending', 'paid', 'partial', 'refunded', 'failed']
         
+        # Keep track of vehicle booking dates
+        vehicle_bookings = {}  # vehicle_id -> list of (start_date, end_date) tuples
+        
         for i in range(count):
             customer = random.choice(users)
-            vehicle = random.choice(vehicles)
             
-            # Generate booking dates
-            start_date = date.today() + timedelta(days=random.randint(-30, 60))
-            end_date = start_date + timedelta(days=random.randint(1, 14))
+            # Try to find an available vehicle and dates
+            max_attempts = 10
+            booking_created = False
             
-            # Skip if dates are in the past for pending bookings
-            booking_status = random.choice(statuses)
-            if booking_status == 'pending' and start_date < date.today():
-                start_date = date.today() + timedelta(days=random.randint(1, 30))
+            for _ in range(max_attempts):
+                vehicle = random.choice(vehicles)
+                
+                # Generate booking dates
+                start_date = date.today() + timedelta(days=random.randint(0, 60))
                 end_date = start_date + timedelta(days=random.randint(1, 14))
-            
-            try:
-                booking = Booking.objects.create(
-                    customer=customer,
-                    vehicle=vehicle,
-                    start_date=start_date,
-                    end_date=end_date,
-                    start_time=f'{random.randint(8, 10)}:00',
-                    end_time=f'{random.randint(17, 19)}:00',
-                    status=booking_status,
-                    payment_status=random.choice(payment_statuses),
-                    daily_rate=vehicle.daily_rate,
-                    deposit_amount=vehicle.deposit_amount,
-                    discount_amount=random.choice([0, 500, 1000, 1500]),
-                    customer_name=customer.get_full_name(),
-                    customer_email=customer.email,
-                    customer_phone=customer.phone_number,
-                    customer_address=customer.address,
-                    driver_license_number=customer.driver_license_number,
-                    pickup_location=vehicle.pickup_location,
-                    return_location=vehicle.pickup_location,
-                    pickup_notes=random.choice([
-                        '', 'Please call upon arrival', 'Building has security gate',
-                        'Park in visitor parking', 'Call 30 minutes before pickup'
-                    ]),
-                    special_requests=random.choice([
-                        '', 'Need GPS navigation', 'Extra cleaning required',
-                        'Child seat needed', 'Fuel tank full', 'Phone charger required'
-                    ]),
-                    terms_accepted=True,
-                )
                 
-                # Create payment record for paid bookings
-                if booking.payment_status == 'paid':
-                    BookingPayment.objects.create(
-                        booking=booking,
-                        payment_method=random.choice(['credit_card', 'debit_card', 'stripe']),
-                        payment_type='full_payment',
-                        amount=booking.total_amount,
-                        currency='PKR',
-                        transaction_id=f'txn_{random.randint(100000, 999999)}',
-                        is_successful=True,
-                        processed_at=timezone.now(),
+                # Skip if dates are in the past for pending bookings
+                booking_status = random.choice(statuses)
+                if booking_status == 'pending' and start_date < date.today():
+                    start_date = date.today() + timedelta(days=random.randint(1, 30))
+                    end_date = start_date + timedelta(days=random.randint(1, 14))
+                
+                # Check if vehicle is available for these dates
+                vehicle_dates = vehicle_bookings.get(vehicle.id, [])
+                is_available = True
+                
+                for booked_start, booked_end in vehicle_dates:
+                    if (start_date <= booked_end and end_date >= booked_start):
+                        is_available = False
+                        break
+                
+                if is_available:
+                    # Add booking dates to vehicle_bookings
+                    vehicle_bookings.setdefault(vehicle.id, []).append((start_date, end_date))
+                    
+                    booking = Booking.objects.create(
+                        customer=customer,
+                        vehicle=vehicle,
+                        start_date=start_date,
+                        end_date=end_date,
+                        start_time=f'{random.randint(8, 10)}:00',
+                        end_time=f'{random.randint(17, 19)}:00',
+                        status=booking_status,
+                        payment_status=random.choice(payment_statuses),
+                        daily_rate=vehicle.daily_rate,
+                        deposit_amount=vehicle.deposit_amount,
+                        discount_amount=random.choice([0, 500, 1000, 1500]),
+                        customer_name=customer.get_full_name(),
+                        customer_email=customer.email,
+                        customer_phone=customer.phone_number,
+                        customer_address=customer.address,
+                        driver_license_number=customer.driver_license_number,
+                        pickup_location=vehicle.pickup_location,
+                        return_location=vehicle.pickup_location,
+                        pickup_notes=random.choice([
+                            '', 'Please call upon arrival', 'Building has security gate',
+                            'Park in visitor parking', 'Call 30 minutes before pickup'
+                        ]),
+                        special_requests=random.choice([
+                            '', 'Need GPS navigation', 'Extra cleaning required',
+                            'Child seat needed', 'Fuel tank full', 'Phone charger required'
+                        ]),
+                        terms_accepted=True,
                     )
-                
-                bookings.append(booking)
-                
-            except Exception as e:
-                # Skip bookings that fail validation (e.g., overlapping dates)
-                continue
+                    bookings.append(booking)
+                    booking_created = True
+                    break
+            
+            if not booking_created:
+                self.stdout.write(
+                    self.style.WARNING(f'Could not create booking {i+1} after {max_attempts} attempts')
+                )
         
         return bookings
 

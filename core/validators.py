@@ -12,6 +12,7 @@ def validate_phone_number(phone_number):
     """
     Validate phone number format.
     """
+    # Matches international phone numbers: optional '+' followed by 1-16 digits (no leading zero)
     pattern = r'^[\+]?[1-9][\d]{0,15}$'
     if not re.match(pattern, phone_number):
         raise ValidationError(
@@ -27,8 +28,7 @@ def validate_license_plate(plate_number):
         raise ValidationError(
             'License plate must be between 3 and 10 characters long.'
         )
-    
-    # Allow alphanumeric characters and hyphens
+    # Matches uppercase letters, numbers and hyphens from start to end of string
     pattern = r'^[A-Z0-9\-]+$'
     if not re.match(pattern, plate_number.upper()):
         raise ValidationError(
@@ -57,7 +57,6 @@ def validate_booking_dates(start_date, end_date):
     if not isinstance(end_date, (date, datetime)):
         raise ValidationError('End date must be a valid date.')
     
-    # Convert to dates if datetime objects
     if isinstance(start_date, datetime):
         start_date = start_date.date()
     if isinstance(end_date, datetime):
@@ -107,21 +106,17 @@ class VehicleValidator:
         """
         errors = {}
         
-        # Validate make
         if not make or len(make.strip()) < 2:
             errors['make'] = 'Make must be at least 2 characters long.'
         
-        # Validate model
         if not model or len(model.strip()) < 2:
             errors['model'] = 'Model must be at least 2 characters long.'
         
-        # Validate year
         try:
             validate_year(year)
         except ValidationError as e:
             errors['year'] = str(e)
         
-        # Validate plate number
         try:
             validate_license_plate(plate_number)
         except ValidationError as e:
@@ -145,7 +140,6 @@ class BookingValidator:
         """
         errors = {}
         
-        # Validate dates
         try:
             validate_booking_dates(start_date, end_date)
         except ValidationError as e:

@@ -4,8 +4,6 @@ Custom exception handlers for consistent error responses.
 
 from rest_framework.views import exception_handler
 from rest_framework import status
-from rest_framework.response import Response
-from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 def custom_exception_handler(exc, context):
@@ -25,7 +23,6 @@ def custom_exception_handler(exc, context):
         if hasattr(exc, 'detail'):
             if isinstance(exc.detail, dict):
                 error_data['errors'] = exc.detail
-                # Set a more specific message if available
                 if 'non_field_errors' in exc.detail:
                     error_data['message'] = exc.detail['non_field_errors'][0]
                 else:
@@ -35,7 +32,6 @@ def custom_exception_handler(exc, context):
             else:
                 error_data['message'] = str(exc.detail)
         
-        # Handle specific exception types
         if response.status_code == status.HTTP_404_NOT_FOUND:
             error_data['message'] = 'Resource not found'
             error_data['error_code'] = 'NOT_FOUND'

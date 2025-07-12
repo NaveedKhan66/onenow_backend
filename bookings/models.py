@@ -4,10 +4,8 @@ Booking models for reservation management.
 
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from decimal import Decimal
 import uuid
 
 User = get_user_model()
@@ -36,7 +34,7 @@ class Booking(models.Model):
     
     # Booking Information
     booking_id = models.CharField(
-        max_length=20,
+        max_length=25,
         unique=True,
         editable=False,
         help_text="Unique booking identifier"

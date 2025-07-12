@@ -25,6 +25,7 @@ This Django REST Framework backend provides complete car rental management funct
 - **Backend Framework:** Django 5.2.4 + Django REST Framework 3.16.0
 - **Authentication:** JWT (djangorestframework-simplejwt)
 - **Database:** SQLite (development) - easily configurable for PostgreSQL/MySQL
+- **API Documentation:** Swagger UI + ReDoc (drf-yasg)
 - **Payment Processing:** Stripe integration
 - **Additional:** CORS headers, django-filter, Pillow for image handling
 
@@ -143,6 +144,11 @@ python manage.py runserver
 
 The API will be available at `http://localhost:8000`
 
+**📚 Access Interactive API Documentation:**
+- Swagger UI: `http://localhost:8000/swagger/`
+- ReDoc: `http://localhost:8000/redoc/`
+- Root URL: `http://localhost:8000/` (redirects to Swagger UI)
+
 ## Database Population (Testing)
 
 To test the APIs with realistic data, you can populate the database with dummy data using the provided management command:
@@ -183,15 +189,141 @@ python manage.py populate_db --clear --users 15 --vehicles 25 --bookings 40
 **Note:** All users are created with password `testpass123` for easy testing.
 
 ### Testing Login Credentials
-After populating the database, you can login with any of these sample emails:
-- `ahmed.khan1@example.com`
-- `fatima.ahmad2@example.com`
-- `hassan.sheikh3@example.com`
-- (and more...)
+After populating the database, you can login with any of the test emails
+
+Django Admin is setup to view all the data present in the database.
+You can create a superuser and then check all the data present in the database.
 
 All users have the password: `testpass123`
 
-## API Documentation
+## API Testing Tools
+
+### Postman Collection
+
+A comprehensive Postman collection is provided for testing all API endpoints:
+
+1. **Import Collection**:
+   - Download `OneNow Backend.postman_collection.json`
+   - Download `OneNow Backend.postman_environment.json`
+   - In Postman: Import → Upload Files → Select both files
+
+2. **Setup Environment**:
+   - Select "OneNow Backend - Local" environment
+   - Variables are automatically managed:
+     - `base_url`: API base URL
+     - `access_token`: JWT access token (auto-updated on login)
+     - `refresh_token`: JWT refresh token (auto-updated on login)
+
+3. **Authentication Flow**:
+   - Use "Register User" or "Login User" request
+   - Tokens are automatically saved to environment variables
+   - All subsequent requests will use the saved token
+
+4. **Available Request Groups**:
+   - **Authentication**: Register, login, profile management
+   - **Vehicles**: CRUD operations, reviews, filtering
+   - **Bookings**: Reservations, availability, payments
+
+5. **Testing Features**:
+   - Pre-configured authentication
+   - Example request bodies
+   - Environment variable management
+   - Request/response examples
+   - Detailed descriptions
+
+6. **Example Usage**:
+   ```bash
+   # 1. Login
+   POST {{base_url}}/api/v1/auth/login/
+   # Token automatically saved
+
+   # 2. Create Vehicle
+   POST {{base_url}}/api/v1/vehicles/
+   # Uses saved token
+
+   # 3. Create Booking
+   POST {{base_url}}/api/v1/bookings/
+   # Uses saved token
+   ```
+
+## API Documentation with Swagger
+
+### Interactive API Documentation
+
+The OneNow Backend comes with **Swagger UI** and **ReDoc** for interactive API documentation and testing:
+
+#### Swagger UI
+- **URL**: `http://localhost:8000/swagger/`
+- **Root URL**: `http://localhost:8000/` (redirects to Swagger UI)
+- **Features**: 
+  - Interactive API explorer with "Try it out" functionality
+  - JWT authentication support (click "Authorize" button)
+  - Request/response examples
+  - Model schemas and validation rules
+  - Real-time API testing
+
+#### ReDoc
+- **URL**: `http://localhost:8000/redoc/`
+- **Features**:
+  - Clean, responsive documentation layout
+  - Advanced search and filtering
+  - Code samples in multiple formats
+  - Comprehensive API reference
+
+#### OpenAPI Schema
+- **JSON Format**: `http://localhost:8000/swagger.json`
+- **YAML Format**: `http://localhost:8000/swagger.yaml`
+- **Use Cases**: Import into Postman, Insomnia, or other API clients
+
+### Using Swagger UI for Testing
+
+1. **Start the Development Server**:
+   ```bash
+   python manage.py runserver
+   ```
+
+2. **Access Swagger UI**: Open `http://localhost:8000/swagger/` in your browser
+
+3. **Authenticate**:
+   - Click the "Authorize" button in the top-right
+   - Enter your JWT token in the format: `Bearer <your_access_token>`
+   - Get tokens by using the `/api/v1/auth/login/` endpoint
+
+4. **Test Endpoints**:
+   - Expand any endpoint section
+   - Click "Try it out"
+   - Fill in the required parameters
+   - Click "Execute" to make real API calls
+
+### API Overview
+
+The Swagger documentation automatically generates comprehensive documentation for:
+
+- **Authentication**: Registration, login, profile management
+- **Vehicles**: CRUD operations, search, filtering, reviews
+- **Bookings**: Reservation management, payments, availability checking
+- **Advanced Features**: Stripe integration, overlap prevention, custom validators
+
+### Authentication in Swagger
+
+To authenticate API requests in Swagger:
+
+1. **Login via Swagger**:
+   - Go to `/api/v1/auth/login/` endpoint
+   - Click "Try it out"
+   - Enter credentials (use sample data from `populate_db` command)
+   - Copy the `access` token from the response
+
+2. **Set Authorization**:
+   - Click "Authorize" button at the top of Swagger UI
+   - Enter: `Bearer <your_access_token>`
+   - Click "Authorize"
+
+3. **Make Authenticated Requests**:
+   - All protected endpoints will now include the JWT token
+   - Test CRUD operations, bookings, and user-specific data
+
+## Manual API Documentation
 
 ### Authentication Endpoints
 
@@ -430,6 +562,6 @@ This project is created for the 1Now developer case study and demonstration purp
 
 ## Contact
 
-For questions about this implementation or 1Now's services, please reach out through the appropriate channels.
+For questions about this implementation or 1Now's services, please reach out on its.naveedkhan66@gmail.com.
 
 **Built with ❤️ for 1Now's Car Rental Platform** 

@@ -78,7 +78,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         
-        # Create user profile
         UserProfile.objects.create(user=user)
         
         return user
