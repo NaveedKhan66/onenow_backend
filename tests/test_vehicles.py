@@ -204,7 +204,7 @@ class VehicleAPITest(APITestCase):
         self.client.force_authenticate(user=self.owner)
         url = reverse('vehicle-list')
         
-        response = self.client.post(url, self.vehicle_data)
+        response = self.client.post(url, self.vehicle_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['success'])
@@ -220,7 +220,7 @@ class VehicleAPITest(APITestCase):
         Test vehicle creation without authentication.
         """
         url = reverse('vehicle-list')
-        response = self.client.post(url, self.vehicle_data)
+        response = self.client.post(url, self.vehicle_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
@@ -235,7 +235,7 @@ class VehicleAPITest(APITestCase):
         invalid_data = self.vehicle_data.copy()
         invalid_data['year'] = 1800
         
-        response = self.client.post(url, invalid_data)
+        response = self.client.post(url, invalid_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -251,7 +251,7 @@ class VehicleAPITest(APITestCase):
         invalid_data = self.vehicle_data.copy()
         invalid_data['plate_number'] = self.vehicle.plate_number
         
-        response = self.client.post(url, invalid_data)
+        response = self.client.post(url, invalid_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -281,7 +281,7 @@ class VehicleAPITest(APITestCase):
             'daily_rate': '5500.00'
         }
         
-        response = self.client.patch(url, update_data)
+        response = self.client.patch(url, update_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -304,7 +304,7 @@ class VehicleAPITest(APITestCase):
             'color': 'Red'
         }
         
-        response = self.client.patch(url, update_data)
+        response = self.client.patch(url, update_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
@@ -337,7 +337,7 @@ class VehicleAPITest(APITestCase):
             'end_date': '2024-02-03'
         }
         
-        response = self.client.post(url, check_data)
+        response = self.client.post(url, check_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -372,9 +372,10 @@ class VehicleAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
-        # Should contain the owner's vehicle
-        self.assertEqual(len(response.data['data']), 1)
-        self.assertEqual(response.data['data'][0]['id'], self.vehicle.pk)
+        # Should contain the owner's vehicle - response has pagination structure
+        self.assertEqual(response.data['data']['count'], 1)
+        self.assertEqual(len(response.data['data']['results']), 1)
+        self.assertEqual(response.data['data']['results'][0]['id'], self.vehicle.pk)
     
     def test_vehicle_add_review(self):
         """
@@ -388,7 +389,7 @@ class VehicleAPITest(APITestCase):
             'comment': 'Excellent car!'
         }
         
-        response = self.client.post(url, review_data)
+        response = self.client.post(url, review_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['success'])
@@ -419,7 +420,7 @@ class VehicleAPITest(APITestCase):
             'comment': 'Updated review'
         }
         
-        response = self.client.post(url, review_data)
+        response = self.client.post(url, review_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -442,5 +443,6 @@ class VehicleAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
+        # This endpoint returns a list directly, not paginated
         self.assertEqual(len(response.data['data']), 1)
         self.assertEqual(response.data['data'][0]['rating'], 5) 

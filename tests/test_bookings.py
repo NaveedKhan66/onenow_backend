@@ -145,12 +145,18 @@ class BookingModelTest(TestCase):
         booking = Booking.objects.create(**future_booking_data)
         self.assertTrue(booking.can_be_cancelled)
         
-        # Past booking
+        # Past booking - create with valid dates first, then update to past dates
         past_booking_data = self.booking_data.copy()
-        past_booking_data['start_date'] = date.today() - timedelta(days=3)
-        past_booking_data['end_date'] = date.today() - timedelta(days=1)
+        past_booking_data['start_date'] = date.today() + timedelta(days=10)
+        past_booking_data['end_date'] = date.today() + timedelta(days=12)
         
         past_booking = Booking.objects.create(**past_booking_data)
+        # Update to past dates bypassing validation
+        Booking.objects.filter(pk=past_booking.pk).update(
+            start_date=date.today() - timedelta(days=3),
+            end_date=date.today() - timedelta(days=1)
+        )
+        past_booking.refresh_from_db()
         self.assertFalse(past_booking.can_be_cancelled)
     
     def test_booking_confirm_method(self):
@@ -252,8 +258,8 @@ class BookingAPITest(APITestCase):
         # Booking data
         self.booking_data = {
             'vehicle': self.vehicle.id,
-            'start_date': (date.today() + timedelta(days=1)).isoformat(),
-            'end_date': (date.today() + timedelta(days=3)).isoformat(),
+            'start_date': (date.today() + timedelta(days=2)).isoformat(),
+            'end_date': (date.today() + timedelta(days=4)).isoformat(),
             'customer_name': 'John Doe',
             'customer_email': 'john@example.com',
             'customer_phone': '+1234567890',
@@ -268,8 +274,8 @@ class BookingAPITest(APITestCase):
         self.booking = Booking.objects.create(
             customer=self.customer,
             vehicle=self.vehicle,
-            start_date=date.today() + timedelta(days=1),
-            end_date=date.today() + timedelta(days=3),
+            start_date=date.today() + timedelta(days=2),
+            end_date=date.today() + timedelta(days=4),
             daily_rate=self.vehicle.daily_rate,
             deposit_amount=self.vehicle.deposit_amount,
             customer_name='John Doe',
@@ -289,7 +295,7 @@ class BookingAPITest(APITestCase):
         self.client.force_authenticate(user=self.customer)
         url = reverse('booking-list')
         
-        response = self.client.post(url, self.booking_data)
+        response = self.client.post(url, self.booking_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['success'])
@@ -305,7 +311,7 @@ class BookingAPITest(APITestCase):
         Test booking creation without authentication.
         """
         url = reverse('booking-list')
-        response = self.client.post(url, self.booking_data)
+        response = self.client.post(url, self.booking_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
     
@@ -321,7 +327,7 @@ class BookingAPITest(APITestCase):
         invalid_data['start_date'] = (date.today() + timedelta(days=5)).isoformat()
         invalid_data['end_date'] = (date.today() + timedelta(days=3)).isoformat()
         
-        response = self.client.post(url, invalid_data)
+        response = self.client.post(url, invalid_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -338,7 +344,7 @@ class BookingAPITest(APITestCase):
         invalid_data['start_date'] = (date.today() - timedelta(days=2)).isoformat()
         invalid_data['end_date'] = (date.today() - timedelta(days=1)).isoformat()
         
-        response = self.client.post(url, invalid_data)
+        response = self.client.post(url, invalid_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -353,7 +359,7 @@ class BookingAPITest(APITestCase):
         invalid_data = self.booking_data.copy()
         invalid_data['terms_accepted'] = False
         
-        response = self.client.post(url, invalid_data)
+        response = self.client.post(url, invalid_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data['success'])
@@ -370,8 +376,10 @@ class BookingAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
-        self.assertEqual(len(response.data['data']), 1)
-        self.assertEqual(response.data['data'][0]['id'], self.booking.id)
+        # Response data contains pagination structure
+        self.assertEqual(response.data['data']['count'], 1)
+        self.assertEqual(len(response.data['data']['results']), 1)
+        self.assertEqual(response.data['data']['results'][0]['id'], self.booking.id)
     
     def test_booking_retrieve_success(self):
         """
@@ -409,7 +417,7 @@ class BookingAPITest(APITestCase):
             'customer_phone': '+9876543210'
         }
         
-        response = self.client.patch(url, update_data)
+        response = self.client.patch(url, update_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -428,7 +436,7 @@ class BookingAPITest(APITestCase):
         self.client.force_authenticate(user=self.customer)
         url = reverse('booking-confirm', kwargs={'pk': self.booking.pk})
         
-        response = self.client.post(url)
+        response = self.client.post(url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -468,7 +476,7 @@ class BookingAPITest(APITestCase):
             'reason': 'Changed plans'
         }
         
-        response = self.client.post(url, cancel_data)
+        response = self.client.post(url, cancel_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -493,7 +501,7 @@ class BookingAPITest(APITestCase):
             'end_date': (date.today() + timedelta(days=12)).isoformat(),
         }
         
-        response = self.client.post(url, check_data)
+        response = self.client.post(url, check_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -518,7 +526,7 @@ class BookingAPITest(APITestCase):
             'end_date': (date.today() + timedelta(days=4)).isoformat(),
         }
         
-        response = self.client.post(url, check_data)
+        response = self.client.post(url, check_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
@@ -536,8 +544,10 @@ class BookingAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
-        self.assertEqual(len(response.data['data']), 1)
-        self.assertEqual(response.data['data'][0]['id'], self.booking.id)
+        # Response data contains pagination structure
+        self.assertEqual(response.data['data']['count'], 1)
+        self.assertEqual(len(response.data['data']['results']), 1)
+        self.assertEqual(response.data['data']['results'][0]['id'], self.booking.id)
     
     def test_booking_add_payment(self):
         """
@@ -554,7 +564,7 @@ class BookingAPITest(APITestCase):
             'is_successful': True
         }
         
-        response = self.client.post(url, payment_data)
+        response = self.client.post(url, payment_data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data['success'])
@@ -585,5 +595,6 @@ class BookingAPITest(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
+        # This endpoint returns a list directly, not paginated
         self.assertEqual(len(response.data['data']), 1)
         self.assertEqual(response.data['data'][0]['amount'], str(self.booking.total_amount)) 

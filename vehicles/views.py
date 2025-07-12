@@ -36,6 +36,23 @@ class VehicleViewSet(ModelViewSet):
     ordering_fields = ['created_at', 'daily_rate', 'year', 'make', 'model']
     ordering = ['-created_at']
     
+    def get_permissions(self):
+        """
+        Return different permissions based on action.
+        """
+        if self.action == 'list':
+            # Vehicle list is publicly accessible
+            return [permissions.AllowAny()]
+        elif self.action in ['reviews', 'check_availability']:
+            # Public read actions that don't require authentication
+            return [permissions.AllowAny()]
+        elif self.action == 'add_review':
+            # Write actions that require authentication
+            return [permissions.IsAuthenticated()]
+        else:
+            # Default permissions for owner operations
+            return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+    
     def get_serializer_class(self):
         """
         Return appropriate serializer class based on action.
@@ -55,6 +72,11 @@ class VehicleViewSet(ModelViewSet):
             return Vehicle.objects.filter(is_active=True).prefetch_related(
                 'images', 'reviews', 'owner'
             )
+        elif self.action in ['add_review', 'reviews', 'check_availability']:
+            # Public actions that can be performed on any active vehicle
+            return Vehicle.objects.filter(is_active=True).prefetch_related(
+                'images', 'reviews', 'owner'
+            )
         else:
             # Detail views show only user's vehicles
             return Vehicle.objects.filter(owner=self.request.user).prefetch_related(
@@ -70,7 +92,12 @@ class VehicleViewSet(ModelViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Wrap pagination response in StandardResponse format
+            return StandardResponse.success(
+                data=paginated_response.data,
+                message="Vehicles retrieved successfully"
+            )
         
         serializer = self.get_serializer(queryset, many=True)
         return StandardResponse.success(
@@ -276,7 +303,12 @@ class VehicleViewSet(ModelViewSet):
         page = self.paginate_queryset(vehicles)
         if page is not None:
             serializer = VehicleSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Wrap pagination response in StandardResponse format
+            return StandardResponse.success(
+                data=paginated_response.data,
+                message="Your vehicles retrieved successfully"
+            )
         
         serializer = VehicleSerializer(vehicles, many=True)
         return StandardResponse.success(
@@ -315,7 +347,12 @@ class VehicleSearchView(ListAPIView):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Wrap pagination response in StandardResponse format
+            return StandardResponse.success(
+                data=paginated_response.data,
+                message="Vehicles found"
+            )
         
         serializer = self.get_serializer(queryset, many=True)
         return StandardResponse.success(

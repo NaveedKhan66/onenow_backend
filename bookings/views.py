@@ -67,7 +67,12 @@ class BookingViewSet(ModelViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Wrap pagination response in StandardResponse format
+            return StandardResponse.success(
+                data=paginated_response.data,
+                message="Bookings retrieved successfully"
+            )
         
         serializer = self.get_serializer(queryset, many=True)
         return StandardResponse.success(
@@ -375,7 +380,12 @@ class BookingViewSet(ModelViewSet):
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = BookingListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            # Wrap pagination response in StandardResponse format
+            return StandardResponse.success(
+                data=paginated_response.data,
+                message="Your bookings retrieved successfully"
+            )
         
         serializer = BookingListSerializer(queryset, many=True)
         return StandardResponse.success(

@@ -163,7 +163,7 @@ class BookingPaymentSerializer(serializers.ModelSerializer):
             'processed_at', 'created_at'
         ]
         read_only_fields = [
-            'id', 'transaction_id', 'is_successful', 'processed_at',
+            'id', 'booking', 'transaction_id', 'is_successful', 'processed_at',
             'created_at'
         ]
 
